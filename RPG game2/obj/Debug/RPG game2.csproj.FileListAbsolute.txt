@@ -1,0 +1,9 @@
+c:\users\jeremy\documents\visual studio 2015\Projects\RPG game2\RPG game2\bin\Debug\RPG game2.exe.config
+c:\users\jeremy\documents\visual studio 2015\Projects\RPG game2\RPG game2\obj\Debug\RPG game2.csprojResolveAssemblyReference.cache
+c:\users\jeremy\documents\visual studio 2015\Projects\RPG game2\RPG game2\obj\Debug\RPG_game2.Properties.Resources.resources
+c:\users\jeremy\documents\visual studio 2015\Projects\RPG game2\RPG game2\obj\Debug\RPG game2.csproj.GenerateResource.Cache
+c:\Users\Jeremy\Documents\Visual Studio 2015\Projects\RPG game2\RPG game2\bin\Debug\RPG game2.exe
+c:\Users\Jeremy\Documents\Visual Studio 2015\Projects\RPG game2\RPG game2\bin\Debug\RPG game2.pdb
+c:\Users\Jeremy\Documents\Visual Studio 2015\Projects\RPG game2\RPG game2\obj\Debug\RPG_game2.Form1.resources
+c:\Users\Jeremy\Documents\Visual Studio 2015\Projects\RPG game2\RPG game2\obj\Debug\RPG game2.exe
+c:\Users\Jeremy\Documents\Visual Studio 2015\Projects\RPG game2\RPG game2\obj\Debug\RPG game2.pdb
