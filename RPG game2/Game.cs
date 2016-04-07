@@ -11,7 +11,7 @@ namespace RPG_game2
 {
     public class Game
     {
-        PictureBox GraphicalIF;
+        PictureBox GraphicalIF; //Graphical Interface
         public Form gameForm;
         PlayerParty playerParty;
         WorldMap worldMap;
@@ -19,29 +19,38 @@ namespace RPG_game2
         bool inEncounter;
         Battle battle;
 
-
+        //Constructor
         public Game(Form form)
         {
+            //set gameform
             gameForm = form;
+            
+            //Setup Graphical Interface
             GraphicalIF = new PictureBox();
             GraphicalIF.Height = gameForm.Height;
             GraphicalIF.Width = gameForm.Width;
             GraphicalIF.BackColor = Color.Cyan;
             GraphicalIF.Parent = gameForm;
+
+            //Create World
             worldMap = new WorldMap(gameForm);
             playerParty = new PlayerParty(new Point(2, 2), 2);
             wmmonster = new WMMonster(new Point(3, 3), 1);
-            DrawAll();
 
+            //Ready to Draw
+            DrawAll();
 
         }
 
+        //DrawAll() determines what state the game is in and draws background and sprites appropriately
         void DrawAll()
         {
+            //set up a new image untowhich graphics will be drawn by the Graphics device
             Image image = new Bitmap(gameForm.Width, gameForm.Height);
             Graphics device;
             device = Graphics.FromImage(image);
 
+            //determine state, Possibly replace this with an enumerated switch case structure
             if (!inEncounter)
             {
                 worldMap.DrawMap(device);
@@ -53,19 +62,24 @@ namespace RPG_game2
                 battle.DrawBattle(device);
 
             }
+
+            //Graphical interface is updated and refreshed
             GraphicalIF.Image = image;
             GraphicalIF.Refresh();
         }
 
+        //HandleKeyPress determines what state the game is in and determine how to respond to key presses, then it draws any updates (redraws everything)
         public void HandleKeyPress(KeyEventArgs e)
         {
             if (!inEncounter)
             {
+                //depending on arrow key pressed the playerparty will move in the desired location
                 if (e.KeyCode == Keys.Up) { playerParty.Move(0, -1); }
                 if (e.KeyCode == Keys.Down) { playerParty.Move(0, 1); }
                 if (e.KeyCode == Keys.Right) { playerParty.Move(1, 0); }
                 if (e.KeyCode == Keys.Left) { playerParty.Move(-1, 0); }
 
+                //if statement determines if a monster has been discovered and will start a battle if so
                 if (CollisionDetector(playerParty.location) == 1)
                 {
                     inEncounter = true;
@@ -75,11 +89,19 @@ namespace RPG_game2
             }
             else
             {
+                //if in battle the battle's keypress method will be called
                 battle.KeyPress(e);
+
+                //if the current key press sets the battle to combat phase then a combat will be conducted followed by a victory check
                 if (battle.inCombat)
                 {
+                    //combat phase must be called here because the combat will require the Graphical IF in order to draw the combat sequence
+                    //I should move this into the battle class and send a reference of the graphicalIF to the battle when initiailly constructing it
+                    //This should allow the battle to manipulate the GraphicalIF by itself
                     battle.StartCombat(GraphicalIF);
                     battle.inCombat = false;
+
+                    //victory check and then either ending the match or starting the next round
                     battle.VictoryCheck();
                     if (battle.victory || battle.defeat)
                     {
@@ -93,10 +115,12 @@ namespace RPG_game2
                 }
             }
 
+            //Key press handled, redraw the GraphicalIF to reflect changes
             DrawAll();
 
         }
 
+        // CollisionDetector method returns different ints depending on what is located at a particular location on the world map
         public int CollisionDetector(Point location)
         {
             int result;
@@ -115,30 +139,38 @@ namespace RPG_game2
 
     //World Map//////////////////////////////////////////////////////
 
+    //World Map Monster has an image, location, ID determines type of battle
     class WMMonster
     {
-        Image image;
         public Point location;
-        int ID;
+        public int ID;
         public WorldMapSprite monsterSprite;
 
         public WMMonster(Point location, int ID)
         {
+            //save given location and ID
             this.location = location;
             this.ID = ID;
+
+            //setup the world map sprite
+            Image image;
             image = new Bitmap("monster.png");
             monsterSprite = new WorldMapSprite(image, location);
         }
+
     }
 
+    //World map contains method for drawing the world map, a 10 * 10 grid of tiles
     class WorldMap
     {
-        Image worldMapSprite;
+        Image worldMapSprite; //not really used I don't think...
+
         public WorldMap(Form form)
         {
             worldMapSprite = new Bitmap(form.Width, form.Height);
         }
 
+        //DrawMap goes through each tile in grid and uses DrawTile
         public void DrawMap(Graphics device)
         {
 
@@ -151,6 +183,7 @@ namespace RPG_game2
             }
         }
 
+        //Drawtile
         void DrawTile(Graphics device, int ID, Point location)
         {
             Image img;
@@ -166,11 +199,13 @@ namespace RPG_game2
         }
     }
 
+    //Contains method for drawing the sprites of characters and objects onto the world map
     class WorldMapSprite
     {
         Image image;
         Point location;
 
+        //when a world Map Sprite is constructed it requires an image a map location, this location is converted into pixel co-ordinates
         public WorldMapSprite(Image image, Point location)
         {
             this.image = image;
@@ -178,11 +213,13 @@ namespace RPG_game2
             this.location.Y = location.Y * 40;
         }
 
+        //Draw current sprite onto map
         public void DrawSprite(Graphics device)
         {
             device.DrawImage(image, location);
         }
 
+        //moves sprite by one map tile
         public void Move(int x, int y)
         {
             location.X += 40 * x;
