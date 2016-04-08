@@ -228,22 +228,27 @@ namespace RPG_game2
     }
 
     //////////////////////////////////////////////Battle////////////////////////////////////////////////////////
-
+    //Battles consist of rounds, at the start of a round the user enters the attacks/techniques and then the target for each hero
+    //the attack and target are stored on the hero class, 
 
     class Battle
     {
-        public bool victory, defeat, inTargeting, inAttack, inCombat;
+        //declaring properties
+        public bool victory, defeat;
+        public bool inTargeting, inTech, inCombat, isFirstHero;
         public int currentHero;
         public BattleMap battleMap;
-        public AttackMenu attackMenu;
+        public TechniqueMenu techMenu;
         public TargetMenu targetMenu;
         public List<Monster> monsterList;
+        public List<Technique> validTechniques;
         public List<Unit> validTargets;
         public List<string> validTargetNames;
         public List<Hero> heroList;
         public Combat combat;
         public FlavourText flavourText;
 
+        //BattleConstructor
         public Battle(int ID, PlayerParty playerParty)
         {
             victory = false;
@@ -275,7 +280,7 @@ namespace RPG_game2
             }
 
             StartNewRound();
-            inAttack = true;
+            inTech = true;
             inTargeting = false;
             inCombat = false;
             battleMap = new BattleMap();
@@ -287,14 +292,14 @@ namespace RPG_game2
         {
             currentHero = 0;
 
-            attackMenu = new AttackMenu(heroList[currentHero], new Point(0, 290));
+            techMenu = new TechniqueMenu(heroList[currentHero], new Point(0, 290));
             targetMenu = new TargetMenu(monsterList, new Point(151, 300));
 
             for(int x =0; x<heroList.Count; x++)
             {
-                for(int y = 0; y<heroList[x].attackList.Count;y++)
+                for(int y = 0; y<heroList[x].techList.Count;y++)
                 {
-                    heroList[x].attackList[y].targetPositions = new List<int>();
+                    heroList[x].techList[y].targetPositions = new List<int>();
                 }
             }
 
@@ -303,16 +308,18 @@ namespace RPG_game2
 
         public void ActivateTechniqueMenu()
         {
-            attackMenu.Update(heroList[currentHero].attackNameList);
+            ValidateTechniques();
+
+            techMenu.Update(validTechniques);
             combat = null;
             inCombat = false;
             inTargeting = false;
-            inAttack = true;
+            inTech = true;
             targetMenu.Dim();
-            attackMenu.Activate();
+            techMenu.Activate();
         }
 
-        public void StartTargetMenu()
+        public void ActivateTargetMenu()
         {
             FindValidTargets();
 
@@ -324,9 +331,9 @@ namespace RPG_game2
             //        validTargetNames.Add(monsterList[x].name);
             //    }
             //}
-            inAttack = false;
+            inTech = false;
             inTargeting = true;
-            attackMenu.Dim();
+            techMenu.Dim();
             targetMenu.Activate();
         }
 
@@ -339,7 +346,7 @@ namespace RPG_game2
             Image background = new Bitmap(GraphicalIF.Width, GraphicalIF.Height);
             device =Graphics.FromImage(background);
             device.DrawImage(battleMap.image, new Point(0, 0));
-            device.DrawImage(attackMenu.menu.box, attackMenu.menu.boxLoc);
+            device.DrawImage(techMenu.menu.box, techMenu.menu.boxLoc);
             device.DrawImage(targetMenu.menu.box, targetMenu.menu.boxLoc);
 
             combat = new Combat(heroList, monsterList, flavourText, GraphicalIF, background);
@@ -358,35 +365,57 @@ namespace RPG_game2
             }
 
 
-            attackMenu.DrawAttackMenu(device);
+            techMenu.DrawAttackMenu(device);
 
             targetMenu.DrawTargetMenu(device);
 
             flavourText.DrawFlavourText(device);
         }
 
+        public void Cancel()
+        {
+            if(inTech)
+            {
+                currentHero--;
+                ActivateTargetMenu();
+            }
+            else if(inTargeting)
+            {
+                ActivateTechniqueMenu();
+            }
+        }
+
         public void KeyPress(KeyEventArgs e)
         {
-            if (inAttack)
+            if (inTech)
             {
                 if (e.KeyCode == Keys.Up)
                 {
-                    attackMenu.menu.cursor.Move(-1);
+                    techMenu.menu.cursor.Move(-1);
                     FindValidTargets();
                     targetMenu.Update(validTargetNames);
                 }
                 if (e.KeyCode == Keys.Down)
                 {
-                    attackMenu.menu.cursor.Move(1);
+                    techMenu.menu.cursor.Move(1);
                     FindValidTargets();
                     targetMenu.Update(validTargetNames);
 
                 }
                 if (e.KeyCode == Keys.Return)
                 {
-                    heroList[currentHero].selection = attackMenu.menu.cursor.POS;
-                    flavourText.AddLine(String.Format("{0} selected {1}", heroList[currentHero].name, heroList[currentHero].attackList[heroList[currentHero].selection].name));
-                    StartTargetMenu();
+                    heroList[currentHero].cA = techMenu.Select();
+                    if (heroList[currentHero].cA != heroList[currentHero].cancel)
+                    {
+                        flavourText.AddLine(String.Format("{0} selected {1}", heroList[currentHero].name, heroList[currentHero].cA.name));
+                        ActivateTargetMenu();
+
+                        //set hero to remember valid targets?
+                    }
+                    else
+                    {
+                        Cancel();
+                    }
                 }
             }
             else if (inTargeting)
@@ -396,7 +425,7 @@ namespace RPG_game2
                 if (e.KeyCode == Keys.Return)
                 {
 
-                    heroList[currentHero].attackList[heroList[currentHero].selection].Target(validTargets[targetMenu.menu.cursor.POS]);
+                    heroList[currentHero].cA.Target(validTargets[targetMenu.menu.cursor.POS]);
                     //flavourText.AddLine(String.Format("{0} targets {1}", heroList[currentHero].name,  monsterList[heroList[currentHero].target].name));
 
                     inTargeting = false;
@@ -407,7 +436,7 @@ namespace RPG_game2
                     }
                     else
                     {
-                        inAttack = true;
+                        inTech = true;
                         currentHero++;
                         ActivateTechniqueMenu();
                     }
@@ -436,26 +465,71 @@ namespace RPG_game2
             }
         }
 
+        //will update the validTargets list for the currently selected technique
         public void FindValidTargets()
         {
-            
             validTargetNames = new List<string>();
-            validTargets = new List<Unit>();
-
-            for(int z=0; z< heroList[currentHero].attackList[attackMenu.menu.cursor.POS].validTargets.Count;z++)
+            //will only find targets for techniques other than cencel
+            if (techMenu.Select() != heroList[currentHero].cancel)
             {
-                for (int x = 0; x < monsterList.Count; x++)
-                {
-                    if(!monsterList[x].isDead && monsterList[x].POS == heroList[currentHero].attackList[attackMenu.menu.cursor.POS].validTargets[z])
-                    {
-                        validTargetNames.Add(monsterList[x].name);
-                        validTargets.Add(monsterList[x]);
-                    }
-                }
+                validTargets = new List<Unit>();
 
+                //will go through the valid targets for the currently selected technique
+                for (int z = 0; z < heroList[currentHero].techList[techMenu.menu.cursor.POS].validTargets.Count; z++)
+                {
+                    //goes through each monster and adds them to the possible target list if present and not dead
+                    for (int x = 0; x < monsterList.Count; x++)
+                    {
+                        if (!monsterList[x].isDead && monsterList[x].POS == heroList[currentHero].techList[techMenu.menu.cursor.POS].validTargets[z])
+                        {
+                            validTargetNames.Add(monsterList[x].name);
+                            validTargets.Add(monsterList[x]);
+                        }
+                    }
+
+                }
             }
 
             targetMenu.Update(validTargetNames);
+        }
+
+        public void ValidateTechniques()
+        {
+            validTechniques = new List<Technique>();
+            bool hasValidated = false;
+
+            //select each technique with firstr for loop
+            for (int x = 0; x < heroList[currentHero].techList.Count; x++)
+            {
+                hasValidated = false;
+
+                //select each valid target of the technique, the valid target represents a position this attack can hit
+                for (int y = 0; y < heroList[currentHero].techList[x].validTargets.Count; y++)
+                {
+
+                    //for each monster the techique could be validated if the monsters position matches with a valid target and isn't already dead
+                    for (int z = 0; z < monsterList.Count; z++)
+                    {
+                        //if the current technique's possible target is present and alive the technique will be validated by using hasValidated and adding it to the valid technique list
+                        if (heroList[currentHero].techList[x].validTargets[y] == monsterList[z].POS && !monsterList[z].isDead && !hasValidated)
+                        {
+                            validTechniques.Add(heroList[currentHero].techList[x]);
+                            hasValidated = true;
+                        }
+
+                    }
+                }
+            }
+
+            //adds cancel button to valid techniques if necessary
+            if(currentHero!=0)
+            {
+                validTechniques.Add(heroList[currentHero].cancel);
+            }
+
+            //lets the hero rememebr what techniques are valid this round
+            heroList[currentHero].validTechs = validTechniques;
+
         }
 
         /* public void DrawAttack(Unit Instigator, Unit Target, PictureBox image)
@@ -506,15 +580,17 @@ namespace RPG_game2
         }
     }
 
-    class AttackMenu
+    class TechniqueMenu
     {
         public Menu menu;
         Point location;
+        List<Technique> techList;
 
-        public AttackMenu(Hero hero, Point location)
+        public TechniqueMenu(Hero hero, Point location)
         {
+            techList = hero.techList;
             this.location = new Point(-5, 255);
-            menu = new Menu(hero.attackNameList, this.location);
+            menu = new Menu(hero.techNameList, this.location);
             Image attackBox = new Bitmap("TechniqueMenuBox.png");
         }
 
@@ -537,11 +613,21 @@ namespace RPG_game2
             menu.Activate(new Bitmap("TechniqueMenuBox.png"));
         }
 
-        public void Update(List<string> newTechniques)
+        //Update works on the techList and the menu
+        public void Update(List<Technique> newTechList)
         {
+            List<string> newTechNameList = new List<string>();
+            techList = newTechList;
+            for(int x=0; x<techList.Count;x++)
+            {
+                newTechNameList.Add(techList[x].name);
+            }
+            menu.Update(newTechNameList);
+        }
 
-
-            menu.Update(newTechniques);
+        public Technique Select()
+        {
+            return techList[menu.cursor.POS];
         }
     }
 
@@ -760,7 +846,7 @@ namespace RPG_game2
         {
             for (int x = 0; x < unitList.Count; x++)
             {
-                unitList[x] = unitList[x].attackList[unitList[x].selection].CombatMonsterPreBuff(unitList[x]);
+                unitList[x] = unitList[x].techList[unitList[x].selection].CombatMonsterPreBuff(unitList[x]);
             }
             return unitList;
         }
@@ -769,7 +855,7 @@ namespace RPG_game2
         {
             for (int x = 0; x < unitList.Count; x++)
             {
-                unitList[x] = unitList[x].attackList[unitList[x].selection].CombatHeroPreBuff(unitList[x]);
+                unitList[x] = unitList[x].cA.CombatHeroPreBuff(unitList[x]);
             }
             return unitList;
         }
@@ -810,11 +896,11 @@ namespace RPG_game2
         public void Attack()
         {
             //flavourText.AddLine(String.Format("{0}{1}{2}", combatants[currentCombatant].name, combatants[currentCombatant].attackList[combatants[currentCombatant].selection].flavor, combatants[target].name));
-            combatants = combatants[currentCombatant].attackList[combatants[currentCombatant].selection].Use(combatants, currentCombatant);
-            targets = combatants[currentCombatant].attackList[combatants[currentCombatant].selection].targetTOPosition;
-            for (int x=0;x< combatants[currentCombatant].attackList[combatants[currentCombatant].selection].targetTOPosition.Count;x++)
+            combatants = combatants[currentCombatant].cA.Use(combatants, currentCombatant);
+            targets = combatants[currentCombatant].cA.targetTOPosition;
+            for (int x=0;x< combatants[currentCombatant].cA.targetTOPosition.Count;x++)
             {
-                flavourText.AddLine(String.Format("{0}{1}{2}", combatants[currentCombatant].name, combatants[currentCombatant].attackList[combatants[currentCombatant].selection].flavor, combatants[combatants[currentCombatant].attackList[combatants[currentCombatant].selection].targetTOPosition[x]].name));
+                flavourText.AddLine(String.Format("{0}{1}{2}", combatants[currentCombatant].name, combatants[currentCombatant].cA.flavor, combatants[combatants[currentCombatant].cA.targetTOPosition[x]].name));
             }
             //flavourText.AddLine(String.Format("{0} takes {1} damge", combatants[target].name, combatants[currentCombatant].STR));
             //flavourText.AddLine(String.Format("{0} has {1} HP left", combatants[target].name, combatants[target].HP));
@@ -853,7 +939,7 @@ namespace RPG_game2
 
     }
 
-    class Attack
+    class Technique
     {
         public List<int> targetTOPosition, validTargets;
         public String name;
@@ -863,7 +949,7 @@ namespace RPG_game2
         public int STRBNS, SPDBNS;
         public AttackID ID;
 
-        public Attack(AttackID ID)
+        public Technique(AttackID ID)
         {
             this.ID = ID;
             targetPositions = new List<int>();
@@ -898,6 +984,9 @@ namespace RPG_game2
                     SPDBNS = 2;
                     flavor = " releases a magical blast at ";
                     break;
+                case AttackID.Cancel:
+                    name = "Cancel";
+                    break;
                 default:
                     STRBNS = 0;
                     SPDBNS = 0;
@@ -915,6 +1004,8 @@ namespace RPG_game2
             {
                 case AttackID.PonitBB:
                     validTargets.Add(0);
+                    break;
+                case AttackID.Cancel:
                     break;
                 default:
                     for (int x = 0; x < 4; x++)
@@ -997,7 +1088,7 @@ namespace RPG_game2
 
     public enum AttackID
     {
-        Power, Quick, MagicEx, none, PonitBB
+        Power, Quick, MagicEx, none, PonitBB, Cancel
     }
 
     //Player Input//
@@ -1289,10 +1380,11 @@ namespace RPG_game2
         public int Health, STR, POS, HP, SPD, selection, target;
         public BattleSprite battleSprite;
         public string name;
-        public List<string> attackNameList;
-        public List<Attack> attackList;
+        public List<string> techNameList;
+        public List<Technique> techList;
         public bool isFriendly, isDead;
         public int offset;
+        public Technique cA;
 
         public Unit(int POS, string name)
         {
@@ -1371,28 +1463,33 @@ namespace RPG_game2
 
         public void UseTechnique(List<Unit> units, int x)
         {
-            units[x].attackList[units[x].selection].Use(units, x);
+            units[x].techList[units[x].selection].Use(units, x);
         }
     }
 
     class Hero : Unit
     {
+        public Technique cancel;
+        public List<Technique> validTechs;
 
         public Hero(string ID, int POS) : base(POS, ID)
         {
+            cancel = new Technique(AttackID.Cancel);
+
             Image image;
-            attackList = new List<Attack>();
-            attackNameList = new List<String>();
+            techList = new List<Technique>();
+
+            techNameList = new List<String>();
             isFriendly = true;
             switch (ID)
             {
                 case "Powerdurk":
                     // name = "Powerdurk";
 
-                    attackList.Add(new Attack(AttackID.Power));
-                    attackList.Add(new Attack(AttackID.Quick));
-                    attackList.Add(new Attack(AttackID.MagicEx));
-                    attackList.Add(new Attack(AttackID.PonitBB));
+                    techList.Add(new Technique(AttackID.Power));
+                    techList.Add(new Technique(AttackID.Quick));
+                    techList.Add(new Technique(AttackID.MagicEx));
+                    techList.Add(new Technique(AttackID.PonitBB));
                     SPD = 5;
                     STR = 5;
                     BSPD = 5;
@@ -1401,8 +1498,8 @@ namespace RPG_game2
                 default:
                     image = new Bitmap("Battler.png");
                     name = "Battler";
-                    attackList.Add(new Attack(AttackID.Power));
-                    attackList.Add(new Attack(AttackID.Quick));
+                    techList.Add(new Technique(AttackID.Power));
+                    techList.Add(new Technique(AttackID.Quick));
                     SPD = 3;
                     STR = 4;
                     BSPD = 3;
@@ -1411,12 +1508,13 @@ namespace RPG_game2
             }
             //battleSprite = new BattleSprite(POS, image);
 
-            for (int x = 0; x < attackList.Count; x++)
+            for (int x = 0; x < techList.Count; x++)
             {
-                attackNameList.Add(attackList[x].name);
+                techNameList.Add(techList[x].name);
             }
             SetStatus(Status.OK);
         }
+
     }
 
     class Monster : Unit
@@ -1424,7 +1522,7 @@ namespace RPG_game2
         public Monster(int POS, MonsterID monsterID) : base(POS, Enum.GetName(typeof(MonsterID), monsterID))
         {
             selection = 0;
-            attackList = new List<RPG_game2.Attack>();
+            techList = new List<RPG_game2.Technique>();
             Image image;
             this.name = Enum.GetName(typeof(MonsterID), monsterID);
             Unit defaultTarget = new Unit(0, "target0");
@@ -1436,24 +1534,25 @@ namespace RPG_game2
                     STR = 1;
                     BSPD = 4;
                     BSTR = 1;
-                    attackList.Add(new Attack(AttackID.none));
+                    techList.Add(new Technique(AttackID.none));
                     break;
                 case MonsterID.Demon2:
                     SPD = 2;
                     STR = 3;
                     BSPD = 2;
                     BSTR = 3;
-                    attackList.Add(new Attack(AttackID.none));
+                    techList.Add(new Technique(AttackID.none));
                     break;
                 default:
                     SPD = 2;
                     STR = 2;
                     BSPD = 2;
                     BSTR = 2;
-                    attackList.Add(new Attack(AttackID.none));
+                    techList.Add(new Technique(AttackID.none));
                     break;
             }
-            attackList[0].Target(defaultTarget);
+            techList[0].Target(defaultTarget);
+            cA = techList[0];
             isFriendly = false;
             battleSprite.POS = POS + 4;
             SetStatus(Status.OK);
