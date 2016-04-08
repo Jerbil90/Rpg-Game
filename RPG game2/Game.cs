@@ -240,7 +240,7 @@ namespace RPG_game2
         public BattleMap battleMap;
         public TechniqueMenu techMenu;
         public TargetMenu targetMenu;
-        public List<Monster> monsterList;
+        public List<Unit> monsterList;
         public List<Technique> validTechniques;
         public List<Unit> validTargets;
         public List<string> validTargetNames;
@@ -253,9 +253,11 @@ namespace RPG_game2
         {
             victory = false;
             defeat = false;
-            monsterList = new List<Monster>();
+            monsterList = new List<Unit>();
             heroList = new List<Hero>();
             flavourText = new FlavourText();
+            techMenu = new TechniqueMenu();
+            targetMenu = new TargetMenu();
             switch (ID)
             {
                 default:
@@ -288,35 +290,53 @@ namespace RPG_game2
 
         }
 
+        //commences new round and updates the tech and target menus
         public void StartNewRound()
         {
+            //reset hero and find valid techniques for the current hero and valid targets for the highlighted technique
             currentHero = 0;
 
-            techMenu = new TechniqueMenu(heroList[currentHero], new Point(0, 290));
-            targetMenu = new TargetMenu(monsterList, new Point(151, 300));
-
-            for(int x =0; x<heroList.Count; x++)
+            if(heroList[currentHero].isDead)
             {
-                for(int y = 0; y<heroList[x].techList.Count;y++)
+                for (int x = 1; x < heroList.Count; x++)
                 {
-                    heroList[x].techList[y].targetPositions = new List<int>();
+                    if(!heroList[x].isDead)
+                    {
+                        currentHero = x;
+                        break;
+                    }
                 }
             }
 
+            //activates the technique menu
             ActivateTechniqueMenu();
+
         }
 
+        //handles changing to the "choose Technique" stageneeds to be able to work from StartNewRound, a Cancel and for sequential hero
         public void ActivateTechniqueMenu()
         {
+            //finds valid techniques for current character
             ValidateTechniques();
 
+            //displayes these valid techniques on the tech menu
             techMenu.Update(validTechniques);
+
+
+
+            //set battle stage
             combat = null;
             inCombat = false;
             inTargeting = false;
             inTech = true;
+
+            //highlight current menu
             targetMenu.Dim();
             techMenu.Activate();
+
+            //finds and displays possible targets
+            FindValidTargets();
+            targetMenu.Update(validTargets);
         }
 
         public void ActivateTargetMenu()
@@ -393,13 +413,13 @@ namespace RPG_game2
                 {
                     techMenu.menu.cursor.Move(-1);
                     FindValidTargets();
-                    targetMenu.Update(validTargetNames);
+                    targetMenu.Update(validTargets);
                 }
                 if (e.KeyCode == Keys.Down)
                 {
                     techMenu.menu.cursor.Move(1);
                     FindValidTargets();
-                    targetMenu.Update(validTargetNames);
+                    targetMenu.Update(validTargets);
 
                 }
                 if (e.KeyCode == Keys.Return)
@@ -490,7 +510,9 @@ namespace RPG_game2
                 }
             }
 
-            targetMenu.Update(validTargetNames);
+            validTargetNames.Add("Cancel");
+            validTargets.Add(new Monster(5, MonsterID.cancel));
+            targetMenu.Update(validTargets);
         }
 
         public void ValidateTechniques()
@@ -584,13 +606,12 @@ namespace RPG_game2
     {
         public Menu menu;
         Point location;
-        List<Technique> techList;
+        private List<Technique> techList;
 
-        public TechniqueMenu(Hero hero, Point location)
+        public TechniqueMenu()
         {
-            techList = hero.techList;
             this.location = new Point(-5, 255);
-            menu = new Menu(hero.techNameList, this.location);
+            menu = new Menu(new List<string>(), this.location);
             Image attackBox = new Bitmap("TechniqueMenuBox.png");
         }
 
@@ -634,34 +655,18 @@ namespace RPG_game2
     class TargetMenu
     {
         public Menu menu;
-        public List<String> monsterNameList;
+        public List<Unit> units;
         public Point location;
         private List<int> offset;
 
-        public TargetMenu(List<Monster> monsterList, Point location)
+        public TargetMenu()
         {
+            List<string> targetNameList = new List<string>();
             offset = new List<int>();
-            this.location = location;
-            monsterNameList = new List<string>();
             this.location = new Point(145, 255);
 
-            for (int x = 0; x < monsterList.Count; x++)
-            {
 
-                if (!monsterList[x].isDead)
-                {
-
-                    monsterNameList.Add(monsterList[x].name);
-
-                }
-
-                else
-                {
-                    offset.Add(x);
-                }
-
-            }
-            menu = new Menu(monsterNameList, this.location);
+            menu = new Menu(targetNameList, this.location);
 
         }
 
@@ -685,25 +690,29 @@ namespace RPG_game2
 
         }
 
-        public int Select()
+       // public Monster Select()
+
+
+        public void Update(List<Unit> newTargets)
         {
-            int n=0;
-
-
-            for (int x = 0; x < offset.Count; x++)
+            List<string> targetNameList = new List<string>();
+            for (int x = 0; x < newTargets.Count; x++)
             {
-                if (menu.cursor.POS + n >= offset[x])
+
+                if (!newTargets[x].isDead)
                 {
-                    n++;
+
+                    targetNameList.Add(newTargets[x].name);
+
                 }
+
+                else
+                {
+                    offset.Add(x);
+                }
+
             }
-            return (menu.cursor.POS+n);
-
-        }
-
-        public void Update(List<string> newTargets)
-        {
-            menu.Update(newTargets);
+            menu.Update(targetNameList);
         }
     }
 
@@ -714,7 +723,7 @@ namespace RPG_game2
         public Turn turn;
         private Image dimage, image;
 
-        public Combat(List<Hero> heroList, List<Monster> monsterList, FlavourText flavourText, PictureBox GraphicalIF, Image background)
+        public Combat(List<Hero> heroList, List<Unit> monsterList, FlavourText flavourText, PictureBox GraphicalIF, Image background)
         {
             image = new Bitmap(GraphicalIF.Width, GraphicalIF.Height);
             monsterList = PreMonsterCombatBuff(monsterList);
@@ -781,7 +790,7 @@ namespace RPG_game2
             //flavourText.AddLine(str);
         }
 
-        private void TurnOrder(List<Hero> heroList, List<Monster> monsterList)
+        private void TurnOrder(List<Hero> heroList, List<Unit> monsterList)
         {
             turnOrder = new List<Unit>();
 
@@ -842,11 +851,11 @@ namespace RPG_game2
             }
         }
 
-        private List<Monster> PreMonsterCombatBuff(List<Monster> unitList)
+        private List<Unit> PreMonsterCombatBuff(List<Unit> unitList)
         {
             for (int x = 0; x < unitList.Count; x++)
             {
-                unitList[x] = unitList[x].techList[unitList[x].selection].CombatMonsterPreBuff(unitList[x]);
+                unitList[x] = unitList[x].cA.CombatPrebuff(unitList[x]);
             }
             return unitList;
         }
@@ -1032,6 +1041,13 @@ namespace RPG_game2
                     targetisAlly.Add(targetUnit.isFriendly);
                     break;
             }
+        }
+
+        public Unit CombatPrebuff(Unit unit)
+        {
+            unit.SPD += SPDBNS;
+            unit.STR += STRBNS;
+            return unit;
         }
 
         public Monster CombatMonsterPreBuff(Monster unit)
@@ -1563,7 +1579,7 @@ namespace RPG_game2
 
     public enum MonsterID
     {
-        Demon, Demon2
+        Demon, Demon2, cancel
     }
 
     class PlayerParty
