@@ -261,7 +261,7 @@ namespace RPG_game2
             monsterList = new List<Unit>();
             heroList = new List<Unit>();
 
-            //create parts f the user interface, the battle log/flavour text, and the menus for selecting techniques and targets
+            //create parts of the user interface, the battle log/flavour text, and the menus for selecting techniques and targets
             flavourText = new FlavourText();
             techMenu = new TechniqueMenu();
             targetMenu = new TargetMenu();
@@ -271,10 +271,10 @@ namespace RPG_game2
             switch (ID)
             {
                 default:
-                    Monster monster1 = new Monster(0, MonsterID.Demon);
-                    Monster monster2 = new Monster(1, MonsterID.Demon2);
-                    Monster monster3 = new Monster(2, MonsterID.Demon);
-                    Monster monster4 = new Monster(3, MonsterID.Demon2);
+                    Monster monster1 = new Monster(0, MonsterID.reddemon);
+                    Monster monster2 = new Monster(1, MonsterID.bluedemon);
+                    Monster monster3 = new Monster(2, MonsterID.bluedemon);
+                    Monster monster4 = new Monster(3, MonsterID.reddemon);
                     monsterList.Add(monster1);
                     monsterList.Add(monster2);
                     monsterList.Add(monster3);
@@ -283,10 +283,11 @@ namespace RPG_game2
                     break;
             }
 
-            //set units starting health as max health
+            //set units starting health as max health and alive
             for (int x = 0; x < heroList.Count; x++)
             {
                 heroList[x].HP = heroList[x].Health;
+                heroList[x].isDead = false;
             }
 
             for (int x = 0; x < monsterList.Count; x++)
@@ -302,7 +303,7 @@ namespace RPG_game2
 
         }
 
-        //commences new round and updates the tech and target menus and constructs the valid heros for this round, (Heros who aren't already defeated
+        //commences new round and updates the tech and target menus and constructs the valid heros for this round, (Heros who aren't already defeated)
         public void StartNewRound()
         {
             //reset currenthero
@@ -323,7 +324,7 @@ namespace RPG_game2
 
         }
 
-        //handles changing to the "choose Technique" stageneeds to be able to work from StartNewRound, a Cancel and for sequential hero
+        //handles changing to the "choose Technique" stage needs to be able to work from StartNewRound, a Cancel and for sequential hero
         public void ActivateTechniqueMenu()
         {
             //finds valid techniques for current character
@@ -529,7 +530,7 @@ namespace RPG_game2
             {
                 validTargetNames.Add("Cancel");
                 cancelloc = validTargets.Count;
-                validTargets.Add(new Monster(4, MonsterID.cancel));
+                validTargets.Add(new Monster(4, MonsterID.target0));
             }
 
             //Now that valid targets has been completed the target menu can be updated
@@ -574,6 +575,11 @@ namespace RPG_game2
 
             //lets the hero rememebr what techniques are valid this round
             validHeros[currentHero].validTechs = validTechniques;
+        }
+
+        public void LoadMonster(MonsterID ID)
+        {
+
         }
 
     }
@@ -1396,10 +1402,12 @@ namespace RPG_game2
         public Technique cancel;
         public List<Technique> validTechs;
 
-        public int BSTR, BSPD;
+        public int BSTR, BSPD; //base stats
         public int Health, STR, POS, HP, SPD, selection, target;
         public BattleSprite battleSprite;
         public string name;
+        public string path;
+        Image imgAtRest, imgAttack, imgDefend, imgDead;
         public List<string> techNameList;
         public List<Technique> techList;
         public bool isFriendly, isDead;
@@ -1420,6 +1428,21 @@ namespace RPG_game2
             SetStatus(Status.OK);
             offset = 0;
             isFriendly = true;
+
+            string filename;
+            path =name + "\\";
+            filename = path + name + "AtRest.png";
+            imgAtRest = new Bitmap(@filename);
+
+            filename = path + name + "Attack.png";
+            imgAttack = new Bitmap(@filename);
+
+            filename = path + name + "Defend.png";
+            imgDefend = new Bitmap(@filename);
+
+            filename = path + name + "Dead.png";
+            imgDead = new Bitmap(@filename);
+
         }
 
         public void DrawUnit(Graphics device)
@@ -1437,14 +1460,12 @@ namespace RPG_game2
             switch (status)
             {
                 case Status.OK:
-                    filename = name + ".png";
-                    battleSprite.image = new Bitmap(@filename);
+                    battleSprite.image = imgAtRest;
                     battleSprite.POS = POS;
                     if(!isFriendly) { battleSprite.POS += 4; }
                     break;
                 case Status.Defending:
-                    filename = name + "Defend.png";
-                    battleSprite.image = new Bitmap(@filename);
+                    battleSprite.image = imgDefend;
                     if(isFriendly)
                     {
                         //battleSprite.POS = 8;
@@ -1455,8 +1476,7 @@ namespace RPG_game2
                     }
                     break;
                 case Status.Attacking:
-                    filename = name + "Attack.png";
-                    battleSprite.image = new Bitmap(@filename);
+                    battleSprite.image = imgAttack;
                     if (isFriendly)
                     {
                         battleSprite.POS = 8;
@@ -1467,8 +1487,7 @@ namespace RPG_game2
                     }
                     break;
                 case Status.Dead:
-                    filename = name + "Dead.png";
-                    battleSprite.image = new Bitmap(@filename);
+                    battleSprite.image = imgDead;
                     battleSprite.POS = POS;
                     if (!isFriendly) { battleSprite.POS += 4; }
                     break;
@@ -1514,7 +1533,6 @@ namespace RPG_game2
                     BSTR = 5;
                     break;
                 default:
-                    image = new Bitmap("Battler.png");
                     name = "Battler";
                     techList.Add(new Technique(AttackID.Power));
                     techList.Add(new Technique(AttackID.Quick));
@@ -1537,38 +1555,45 @@ namespace RPG_game2
 
     class Monster : Unit
     {
+        public MonsterID ID;
         public Monster(int POS, MonsterID monsterID) : base(POS, Enum.GetName(typeof(MonsterID), monsterID))
         {
             selection = 0;
             techList = new List<RPG_game2.Technique>();
             Image image;
-            this.name = Enum.GetName(typeof(MonsterID), monsterID);
+            this.ID = monsterID;
+            if(String.Compare((Enum.GetName(typeof(MonsterID), monsterID)), "target0")!=0)
+            {
+                LoadUnit();
+            }
+            techList.Add(new Technique(AttackID.none));
+
             Unit defaultTarget = new Unit(0, "target0");
 
-            switch (monsterID)
-            {
-                case MonsterID.Demon:
-                    SPD = 4;
-                    STR = 1;
-                    BSPD = 4;
-                    BSTR = 1;
-                    techList.Add(new Technique(AttackID.none));
-                    break;
-                case MonsterID.Demon2:
-                    SPD = 2;
-                    STR = 3;
-                    BSPD = 2;
-                    BSTR = 3;
-                    techList.Add(new Technique(AttackID.none));
-                    break;
-                default:
-                    SPD = 2;
-                    STR = 2;
-                    BSPD = 2;
-                    BSTR = 2;
-                    techList.Add(new Technique(AttackID.none));
-                    break;
-            }
+            //switch (monsterID)
+            //{
+            //    case MonsterID.Demon:
+            //        SPD = 4;
+            //        STR = 1;
+            //        BSPD = 4;
+            //        BSTR = 1;
+            //        techList.Add(new Technique(AttackID.none));
+            //        break;
+            //    case MonsterID.Demon2:
+            //        SPD = 2;
+            //        STR = 3;
+            //        BSPD = 2;
+            //        BSTR = 3;
+            //        techList.Add(new Technique(AttackID.none));
+            //        break;
+            //    default:
+            //        SPD = 2;
+            //        STR = 2;
+            //        BSPD = 2;
+            //        BSTR = 2;
+            //        techList.Add(new Technique(AttackID.none));
+            //        break;
+            //}
             techList[0].Target(defaultTarget);
             cA = techList[0];
             isFriendly = false;
@@ -1577,11 +1602,72 @@ namespace RPG_game2
             //battleSprite = new BattleSprite(this.POS, image);
 
         }
+
+        public void LoadUnit()
+        {
+            StreamReader sr = new StreamReader("monsterfile.txt");
+            string enumname = Enum.GetName(typeof(MonsterID), ID);
+            string line;
+            string ss; //substring
+            bool loading = true;
+            int pos; //to keep track of the position where a label ends
+
+            while (loading)
+            {
+                line = sr.ReadLine();
+                if (String.Compare(line, enumname) == 0)
+                {
+                    //the monsterfile must be formatted so that the properties are always located in the same place after the enumname
+                    //and so that each propertiy is in the correct column (position) for the parsing to work
+                    //this gives space for a label in the text file and "" in the name
+
+                    //ReadName
+                    line = sr.ReadLine();
+                    pos = 8;
+                    ss = line.Substring(pos, ((line.Length - 1) - pos));
+                    Console.WriteLine(ss);
+                    Console.ReadLine();
+                    name = ss;
+
+                    //Read Health
+                    line = sr.ReadLine();
+                    pos = 9;
+                    ss = line.Substring(pos, ((line.Length) - pos));
+                    Console.WriteLine(ss);
+                    Console.ReadLine();
+                    Health = int.Parse(ss);
+
+                    //Read Strength
+                    line = sr.ReadLine();
+                    pos = 6;
+                    ss = line.Substring(pos, ((line.Length) - pos));
+                    Console.WriteLine(ss);
+                    Console.ReadLine();
+                    STR = int.Parse(ss);
+
+                    //Read Defense
+                    line = sr.ReadLine();
+                    pos = 6;
+                    ss = line.Substring(pos, ((line.Length) - pos));
+                    Console.WriteLine(ss);
+                    Console.ReadLine();
+                    SPD = int.Parse(ss);
+
+
+                    loading = false;
+                }
+
+
+            }
+
+            HP = Health;
+
+        }
     }
 
     public enum MonsterID
     {
-        Demon, Demon2, cancel
+        reddemon, bluedemon, target0
     }
 
     class PlayerParty
@@ -1599,7 +1685,6 @@ namespace RPG_game2
 
             image = new Bitmap("player Party Sprite.png");
             partySprite = new WorldMapSprite(image, location);
-            image = new Bitmap("Powerdurk.png");
             heros = new List<Unit>();
             heros.Add(new Hero("Powerdurk", 0));
             heros.Add(new Hero("Battler", 1));
