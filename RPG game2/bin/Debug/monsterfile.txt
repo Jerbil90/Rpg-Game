@@ -1,0 +1,12 @@
+
+reddemon
+Name = "Red Demon"
+Health = 10
+STR = 3
+SPD = 3
+
+bluedemon
+Name = "Blue Demon"
+Health = 20
+STR = 5
+SPD = 2
