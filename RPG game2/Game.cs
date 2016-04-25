@@ -84,7 +84,7 @@ namespace RPG_game2
                 {
                     inEncounter = true;
                     playerParty.Move(1, 1);
-                    battle = new Battle(1, playerParty);
+                    battle = new Battle(BattleID.Demontest2, playerParty);
                 }
             }
             else
@@ -251,7 +251,7 @@ namespace RPG_game2
         public int cancelloc;
 
         //BattleConstructor
-        public Battle(int ID, PlayerParty playerParty)
+        public Battle(BattleID battleID, PlayerParty playerParty)
         {
             //sets the stage for the battle
             victory = false;
@@ -266,22 +266,12 @@ namespace RPG_game2
             techMenu = new TechniqueMenu();
             targetMenu = new TargetMenu();
 
-            //switch based on the battle ID, will allow different monsters to be loaded depending of the battle
-            //to be incorporated: a stream reader taht will load the battle from a battle library (a map of battle ID to monster types and positions)
-            switch (ID)
-            {
-                default:
-                    Monster monster1 = new Monster(0, MonsterID.reddemon);
-                    Monster monster2 = new Monster(1, MonsterID.bluedemon);
-                    Monster monster3 = new Monster(2, MonsterID.bluedemon);
-                    Monster monster4 = new Monster(3, MonsterID.reddemon);
-                    monsterList.Add(monster1);
-                    monsterList.Add(monster2);
-                    monsterList.Add(monster3);
-                    monsterList.Add(monster4);
-                    heroList = playerParty.heros;
-                    break;
-            }
+            //Create new Monster objects, and add them to the monsterList with LoadMonsters()
+            LoadMonsters(battleID);
+
+
+            heroList = playerParty.heros;
+
 
             //set units starting health as max health and alive
             for (int x = 0; x < heroList.Count; x++)
@@ -577,11 +567,72 @@ namespace RPG_game2
             validHeros[currentHero].validTechs = validTechniques;
         }
 
-        public void LoadMonster(MonsterID ID)
+        //Will be called in the Battle constructor to load monster types and positions
+        public void LoadMonsters(BattleID ID)
         {
+            StreamReader sr = new StreamReader("battlefile.txt");
+            string enumname = Enum.GetName(typeof(BattleID), ID);
+            string line;
+            string ss; //substring
+            bool loading = true;
+            int numEnemies;
+            int filecursor; //to keep track of the position where a label ends
+            int pos;
+            Monster monster;
+            MonsterID EnemyID;
+
+            while (loading)
+            {
+                line = sr.ReadLine();
+
+                //First the correct battle data is located within the battlefile
+                if (String.Compare(line, enumname) == 0)
+                {
+                    //the battlefile must be formatted so that the properties are always located in the same place after the enumname
+                    //and so that each property is in the correct column (position) for the parsing to work
+                    //this gives space for a label in the text file and "" in the EnemyName
+
+                    //Next, the number of enemies in the encounter is determined
+                    line = sr.ReadLine();
+                    filecursor = 13;
+                    ss = line.Substring(filecursor, ((line.Length) - filecursor));
+                    Console.WriteLine(ss);
+                    Console.ReadLine();
+                    numEnemies = int.Parse(ss);
+
+                    //Then the position and name of each enemy is determined
+                    for(int x=0; x< numEnemies;x++)
+                    {
+                        line = sr.ReadLine();
+                        filecursor = 6;
+                        ss = line.Substring(filecursor, ((line.Length) - filecursor));
+                        pos = int.Parse(ss);
+
+                        line = sr.ReadLine();
+                        filecursor = 15;
+                        ss = line.Substring(filecursor, ((line.Length-1) - filecursor));
+                        EnemyID = (MonsterID) Enum.Parse(typeof(MonsterID), ss);
+                        monster = new Monster(pos, EnemyID);
+                        monsterList.Add(monster);
+
+
+
+                    }
+
+                    loading = false;
+                }
+
+
+            }
+
 
         }
+    }
 
+
+    enum BattleID
+    {
+        Demontest1, Demontest2
     }
 
     class BattleMap

@@ -1,0 +1,15 @@
+Demontest1
+numEnemies = 3
+POS = 0
+MonsterName = "reddemon"
+POS = 1
+MonsterName = "reddemon"
+POS = 2
+MonsterName = "reddemon"
+
+Demontest2
+numEnemies = 2
+POS = 0
+MonsterName = "bluedemon"
+POS = 1
+MonsterName = "reddemon"
