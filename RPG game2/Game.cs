@@ -161,10 +161,11 @@ namespace RPG_game2
     }
 
     //World map contains method for drawing the world map, a 10 * 10 grid of tiles
+    //world map will be updated to hold information about objects(including Characters/monsters)
     class WorldMap
     {
+        
         Image worldMapSprite; //not really used I don't think...
-
         public WorldMap(Form form)
         {
             worldMapSprite = new Bitmap(form.Width, form.Height);
@@ -197,6 +198,8 @@ namespace RPG_game2
             }
             device.DrawImage(img, location);
         }
+
+        //
     }
 
     //Contains method for drawing the sprites of characters and objects onto the world map
@@ -521,6 +524,7 @@ namespace RPG_game2
                 validTargetNames.Add("Cancel");
                 cancelloc = validTargets.Count;
                 validTargets.Add(new Monster(4, MonsterID.target0));
+                validTargets[(validTargets.Count)-1].name = "Cancel";
             }
 
             //Now that valid targets has been completed the target menu can be updated
@@ -804,9 +808,18 @@ namespace RPG_game2
                     GraphicalIF.Refresh();
                     System.Threading.Thread.Sleep(2000);
                     turnOrder[x].SetStatus(Status.OK);
+
+                    //For each target will check if they are dead or ok
                     for (int y = 0; y < turn.targets.Count; y++)
                     {
-                        turnOrder[turn.targets[y]].SetStatus(Status.OK);
+                        if(turnOrder[turn.targets[y]].HP>0)
+                        {
+                            turnOrder[turn.targets[y]].SetStatus(Status.OK);
+                        }
+                        else
+                        {
+                            turnOrder[turn.targets[y]].SetStatus(Status.Dead);
+                        }
                     }
 
                 }
@@ -1721,7 +1734,7 @@ namespace RPG_game2
         reddemon, bluedemon, target0
     }
 
-    class PlayerParty
+    unsafe class PlayerParty
     {
         Image image;
         public Point location;
